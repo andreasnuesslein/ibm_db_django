@@ -74,19 +74,6 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         table_list = []
         for table in cursor.connection.tables():
             table_list.append(table['table_name'].lower())
-        table_list = [
-            'aboverteiler', 'kunderw', 'bgs',
-            'padr', 'padrbank', 'padrz', 'padrzusatz', 'padrkomm',
-            'persnotiz', 'persnotizerw', 'persmerkmal', 'persreaktion',
-            'perskampagne', 'perskampexem', 'perskampexem_erw',
-            'sp', 'mg',
-            'mandate', 'zahlplan', 'zahlplanerw', 'buchsatz',
-            'werbecode', 'aktionen', 'kampagne', 'aktionsteiln',
-        ]
-        table_list = [
-            'temp_padr',
-            'temp_padr2'
-        ]
         return table_list
 
     def get_table_description(self, cursor, table_name):
