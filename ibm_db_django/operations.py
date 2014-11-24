@@ -1,7 +1,7 @@
 # +--------------------------------------------------------------------------+
 # |  Licensed Materials - Property of IBM                                    |
 # |                                                                          |
-# | (C) Copyright IBM Corporation 2009-2013.                                      |
+# | (C) Copyright IBM Corporation 2009-2014.                                 |
 # +--------------------------------------------------------------------------+
 # | This module complies with Django 1.0 and is                              |
 # | Licensed under the Apache License, Version 2.0 (the "License");          |
@@ -31,7 +31,7 @@ except ImportError:
     pytz = None
 
 if djangoVersion[0:2] > (1, 1):
-    from django.db import utils
+    from django.db import utils, NotSupportedError
 
 _IS_JYTHON = sys.platform.startswith('java')
 if djangoVersion[0:2] >= (1, 4):
@@ -52,7 +52,7 @@ class DatabaseOperations(BaseDatabaseOperations):
             super(DatabaseOperations, self).__init__()
         self.connection = connection
 
-    if djangoVersion[0:2] >= ( 1, 2 ):
+    if djangoVersion[0:2] >= (1, 2):
         compiler_module = "ibm_db_django.compiler"
 
     def cache_key_culling_sql(self):
@@ -87,6 +87,8 @@ class DatabaseOperations(BaseDatabaseOperations):
             return 'BITAND(%s, %s)' % ( sub_expressions[0], sub_expressions[1] )
         elif operator == '|':
             return 'BITOR(%s, %s)' % ( sub_expressions[0], sub_expressions[1] )
+        elif operator == '^':
+            return 'POWER(%s, %s)' % ( sub_expressions[0], sub_expressions[1] )
         else:
             return super(DatabaseOperations, self).combine_expression(operator, sub_expressions)
 
@@ -113,24 +115,24 @@ class DatabaseOperations(BaseDatabaseOperations):
             tz = pytz.timezone(tzname)
             td = tz.utcoffset(datetime.datetime(2012, 1, 1))
             if td.days is -1:
-                minute = (td.seconds % (60 * 60)) / 60 - 60
-                if minute:
+                min = (td.seconds % (60 * 60)) / 60 - 60
+                if min:
                     hr = td.seconds / (60 * 60) - 23
                 else:
                     hr = td.seconds / (60 * 60) - 24
             else:
                 hr = td.seconds / (60 * 60)
-                minute = (td.seconds % (60 * 60)) / 60
-            return hr, minute
+                min = (td.seconds % (60 * 60)) / 60
+            return hr, min
 
     # Function to extract time zone-aware day, month or day of week from timestamps   
     def datetime_extract_sql(self, lookup_type, field_name, tzname):
         if settings.USE_TZ:
-            hr, minute = self._get_utcoffset(tzname)
+            hr, min = self._get_utcoffset(tzname)
             if hr < 0:
-                field_name = "%s - %s HOURS - %s MINUTES" % (field_name, -hr, -minute)
+                field_name = "%s - %s HOURS - %s MINUTES" % (field_name, -hr, -min)
             else:
-                field_name = "%s + %s HOURS + %s MINUTES" % (field_name, hr, minute)
+                field_name = "%s + %s HOURS + %s MINUTES" % (field_name, hr, min)
 
         if lookup_type.upper() == 'WEEK_DAY':
             return " DAYOFWEEK(%s) " % field_name, []
@@ -148,20 +150,17 @@ class DatabaseOperations(BaseDatabaseOperations):
             sql = sql % ( field_name, 7, '-01' )
         elif lookup_type.upper() == 'YEAR':
             sql = sql % ( field_name, 4, '-01-01' )
-        if djangoVersion[0:2] < ( 1, 6 ):
-            return sql
-        else:
-            return sql
+        return sql
 
     # Truncating the time zone-aware timestamps value on the basic of lookup type
     def datetime_trunc_sql(self, lookup_type, field_name, tzname):
         sql = "TIMESTAMP(SUBSTR(CHAR(%s), 1, %d) || '%s')"
         if settings.USE_TZ:
-            hr, minute = self._get_utcoffset(tzname)
+            hr, min = self._get_utcoffset(tzname)
             if hr < 0:
-                field_name = "%s - %s HOURS - %s MINUTES" % (field_name, -hr, -minute)
+                field_name = "%s - %s HOURS - %s MINUTES" % (field_name, -hr, -min)
             else:
-                field_name = "%s + %s HOURS + %s MINUTES" % (field_name, hr, minute)
+                field_name = "%s + %s HOURS + %s MINUTES" % (field_name, hr, min)
         if lookup_type.upper() == 'SECOND':
             sql = sql % ( field_name, 19, '.000000' )
         if lookup_type.upper() == 'MINUTE':
@@ -255,7 +254,14 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     # Function to quote the name of schema, table and column.
     def quote_name(self, name):
-        return name.replace('"', '')
+        name = name.upper()
+        if name.startswith("\"") and name.endswith("\""):
+            return name
+        elif name.startswith("\""):
+            return "%s\"" % name
+        elif name.endswith("\""):
+            return "\"%s" % name
+        return "\"%s\"" % name
 
     # SQL to return RANDOM number.
     # Reference: http://publib.boulder.ibm.com/infocenter/db2luw/v8/topic/com.ibm.db2.udb.doc/admin/r0000840.htm
@@ -443,7 +449,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         if value is None:
             return None
 
-        if djangoVersion[0:2] <= ( 1, 3 ):
+        if djangoVersion[0:2] <= (1, 3):
             # DB2 doesn't support time zone aware datetime
             if value.tzinfo is not None:
                 raise ValueError("Timezone aware datetime not supported")
@@ -461,7 +467,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         if value is None:
             return None
 
-        if djangoVersion[0:2] <= ( 1, 3 ):
+        if djangoVersion[0:2] <= (1, 3):
             # DB2 doesn't support time zone aware time
             if value.tzinfo is not None:
                 raise ValueError("Timezone aware time not supported")
@@ -486,7 +492,7 @@ class DatabaseOperations(BaseDatabaseOperations):
     def for_update_sql(self, nowait=False):
         # DB2 doesn't support nowait select for update
         if nowait:
-            if djangoVersion[0:2] > ( 1, 1 ):
+            if djangoVersion[0:2] > (1, 1):
                 raise utils.DatabaseError("Nowait Select for update not supported ")
             else:
                 raise ValueError("Nowait Select for update not supported ")
