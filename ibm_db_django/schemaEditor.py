@@ -532,10 +532,10 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
                 except Error as e:
                     self.execute(del_column)
                     raise e
-            
+
     def alter_db_table(self, model, old_db_table, new_db_table):
         super(DB2SchemaEditor, self).alter_db_table(model, old_db_table, new_db_table)
-        
+
     def _alter_many_to_many(self, model, old_field, new_field, strict):
         deferred_constraints = {
                           'pk': {},
@@ -558,7 +558,7 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
         self._reorg_tables()
         super(DB2SchemaEditor, self)._alter_many_to_many(model, old_field, new_field, strict)
         self._restore_constraints_check(deferred_constraints, rel_old_field, rel_new_field, new_field.rel.through)
-        
+
     def _reorg_tables(self):
         checkReorgSQL = "select TABSCHEMA, TABNAME from SYSIBMADM.ADMINTABINFO where REORG_PENDING = 'Y'"
         res = []
@@ -569,10 +569,10 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
         if res:
             for sName, tName in res:
                 reorgSQL = '''CALL SYSPROC.ADMIN_CMD('REORG TABLE "%(sName)s"."%(tName)s"')''' % {'sName': sName, 'tName': tName}
-                reorgSQLs.append(reorgSQL)      
+                reorgSQLs.append(reorgSQL)
         for sql in reorgSQLs:
             self.execute(sql)
-        
+
     def _defer_constraints_check(self, constraints, deferred_constraints, old_field, new_field, model, defer_pk=False, defer_unique=False, defer_index=False, defer_check=False):
         for constr_name, constr_dict in constraints.items():
             if defer_pk and constr_dict['primary_key'] is True:
@@ -609,9 +609,9 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
                                         'name': constr_name
                                 })
                     deferred_constraints['check'][constr_name] = constr_dict['columns']
-            
+
         return deferred_constraints
-    
+
     def _restore_constraints_check(self, deferred_constraints, old_field, new_field, model):
         self.__model = model
         for pk_name, columns in deferred_constraints['pk'].items():
@@ -630,4 +630,4 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
                                 'name': index_name,
                                 'columns': ', '.join(column.replace(old_field.column, new_field.column) for column in columns),
                                 'extra': ""})
-                                
+
