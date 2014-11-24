@@ -254,20 +254,12 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     # Function to quote the name of schema, table and column.
     def quote_name(self, name):
-        name = name.upper()
-        if name.startswith("\"") and name.endswith("\""):
-            return name
-        elif name.startswith("\""):
-            return "%s\"" % name
-        elif name.endswith("\""):
-            return "\"%s" % name
-        return "\"%s\"" % name
+        return name.replace('"', '')
 
     # SQL to return RANDOM number.
     # Reference: http://publib.boulder.ibm.com/infocenter/db2luw/v8/topic/com.ibm.db2.udb.doc/admin/r0000840.htm
     def random_function_sql(self):
         return "SYSFUN.RAND()"
-
 
     def regex_lookup(self, lookup_type):
         if lookup_type == 'regex':
