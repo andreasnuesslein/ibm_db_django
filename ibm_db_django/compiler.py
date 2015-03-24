@@ -135,19 +135,13 @@ class SQLCompiler(compiler.SQLCompiler):
     # For case insensitive search, converting parameter value to upper case.
     # The right hand side will get converted to upper case in the SQL itself.
     def __do_filter(self, children):
+        from django.db.models.lookups import IContains, IExact, IStartsWith, IEndsWith
         for index in range(len(children)):
+            if isinstance(children[index], (IContains,IExact,IStartsWith,IEndsWith)):
+                children[index].rhs = children[index].rhs.lower()
             if not isinstance(children[index], ( tuple, list )):
                 if hasattr(children[index], 'children'):
                     self.__do_filter(children[index].children)
-            elif isinstance(children[index], tuple):
-                node = list(children[index])
-                if node[1].find("iexact") != -1 or \
-                                node[1].find("icontains") != -1 or \
-                                node[1].find("istartswith") != -1 or \
-                                node[1].find("iendswith") != -1:
-                    if node[2]:
-                        node[3] = node[3].upper()
-                        children[index] = tuple(node)
 
 
 class SQLInsertCompiler(compiler.SQLInsertCompiler, SQLCompiler):

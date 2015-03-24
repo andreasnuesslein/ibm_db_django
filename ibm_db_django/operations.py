@@ -230,7 +230,7 @@ class DatabaseOperations(BaseDatabaseOperations):
     # left hand side field to upper.
     def lookup_cast(self, lookup_type):
         if lookup_type in ( 'iexact', 'icontains', 'istartswith', 'iendswith' ):
-            return "UPPER(%s)"
+            return "LOWER(%s)"
         return "%s"
 
     # As DB2 v91 specifications, 
